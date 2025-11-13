@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .error { color: red; background: #fee; padding: 10px; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>Testing React App</h1>
+  <div id="errors"></div>
+  <div id="root"></div>
+  
+  <script>
+    window.addEventListener('error', function(e) {
+      document.getElementById('errors').innerHTML += 
+        '<div class="error">' + e.message + '<br>' + e.filename + ':' + e.lineno + '</div>';
+    });
+  </script>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
