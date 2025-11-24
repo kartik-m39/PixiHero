@@ -18,7 +18,7 @@ import { useHeroAnimation } from "./useHeroAnimation";
 
 interface HeroProps {
   texture: Texture | undefined;
-  onMove: (gridX: number, gridY: number) => void;
+  onMove: (x: number, y: number, direction: Direction | null, isMoving: boolean) => void;
 }
 
 export const Hero = ({ texture, onMove }: HeroProps) => {
@@ -39,9 +39,9 @@ export const Hero = ({ texture, onMove }: HeroProps) => {
     animationSpeed: ANIMATION_SPEED,
   });
 
-  // Informing parent component about the re-render of the hero component ie the hero is moving
+  // Informing parent component about the initial position
   useEffect(() => {
-    onMove(position.current.x, position.current.y);
+    onMove(position.current.x, position.current.y, null, false);
   }, [onMove]);
 
   const setNextTarget = useCallback((direction: Direction) => {
@@ -78,10 +78,19 @@ export const Hero = ({ texture, onMove }: HeroProps) => {
       position.current = newPosition;
       isMoving.current = true;
 
+      // Send position update continuously while moving
+      onMove(position.current.x, position.current.y, currentDirection.current, true);
+
       if (completed) {
-        const { x, y } = position.current;
-        onMove(x, y);
         targetPosition.current = null;
+        isMoving.current = false;
+        // Send final position
+        onMove(position.current.x, position.current.y, currentDirection.current, false);
+      }
+    } else {
+      // Send position even when idle
+      if (isMoving.current) {
+        onMove(position.current.x, position.current.y, currentDirection.current, false);
         isMoving.current = false;
       }
     }

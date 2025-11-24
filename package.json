@@ -12,17 +12,19 @@
   },
   "dependencies": {
     "@pixi/react": "8.0.0-beta.25",
+    "buffer": "^6.0.3",
+    "events": "^3.3.0",
     "pixi.js": "^8.2.6",
+    "process": "^0.11.10",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "simple-peer": "^9.11.1",
+    "stream-browserify": "^3.0.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
     "@types/react": "^19.2.4",
     "@types/react-dom": "^19.2.3",
-    "@types/simple-peer": "^9.11.9",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^5.1.1",
     "eslint": "^9.33.0",

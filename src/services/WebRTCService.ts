@@ -1,4 +1,4 @@
-import Peer from 'simple-peer';
+import Peer from "simple-peer";
 
 export type PeerConnection = {
   peer: Peer;
@@ -18,12 +18,16 @@ export class WebRTCService {
   private clientId: string;
   private roomId: string;
   private onPeerMovement?: (peerId: string, data: MovementData) => void;
-  private onChatMessage?: (from: string, message: string, timestamp: number) => void;
+  private onChatMessage?: (
+    from: string,
+    message: string,
+    timestamp: number,
+  ) => void;
 
   constructor(
     roomId: string,
     onPeerMovement?: (peerId: string, data: MovementData) => void,
-    onChatMessage?: (from: string, message: string, timestamp: number) => void
+    onChatMessage?: (from: string, message: string, timestamp: number) => void,
   ) {
     this.clientId = Math.random().toString(36).substring(7);
     this.roomId = roomId;
@@ -32,14 +36,14 @@ export class WebRTCService {
   }
 
   connect() {
-    this.ws = new WebSocket('ws://localhost:8080');
+    this.ws = new WebSocket("ws://localhost:8080");
 
     this.ws.onopen = () => {
-      console.log('Connected to signaling server');
+      console.log("Connected to signaling server");
       this.ws?.send(JSON.stringify({
-        type: 'join',
+        type: "join",
         roomId: this.roomId,
-        clientId: this.clientId
+        clientId: this.clientId,
       }));
     };
 
@@ -47,38 +51,42 @@ export class WebRTCService {
       const message = JSON.parse(event.data);
 
       switch (message.type) {
-        case 'peers':
+        case "peers":
           message.peers.forEach((peerId: string) => {
             this.createPeer(peerId, true);
           });
           break;
 
-        case 'peer-joined':
+        case "peer-joined":
           this.createPeer(message.peerId, false);
           break;
 
-        case 'signal':
+        case "signal":
           const peer = this.peers.get(message.from);
           if (peer) {
             peer.signal(message.signal);
           }
           break;
 
-        case 'peer-left':
+        case "peer-left":
           this.removePeer(message.peerId);
           break;
 
-        case 'chat':
+        case "chat":
           if (this.onChatMessage) {
-            this.onChatMessage(message.from, message.message, message.timestamp);
+            this.onChatMessage(
+              message.from,
+              message.message,
+              message.timestamp,
+            );
           }
           break;
       }
     };
 
     this.ws.onclose = () => {
-      console.log('Disconnected from signaling server');
-      this.peers.forEach(peer => peer.destroy());
+      console.log("Disconnected from signaling server");
+      this.peers.forEach((peer) => peer.destroy());
       this.peers.clear();
     };
   }
@@ -88,33 +96,33 @@ export class WebRTCService {
 
     const peer = new Peer({
       initiator,
-      trickle: true
+      trickle: true,
     });
 
-    peer.on('signal', (signal: any) => {
+    peer.on("signal", (signal: any) => {
       this.ws?.send(JSON.stringify({
-        type: 'signal',
+        type: "signal",
         to: peerId,
-        signal
+        signal,
       }));
     });
 
-    peer.on('connect', () => {
+    peer.on("connect", () => {
       console.log(`Connected to peer: ${peerId}`);
     });
 
-    peer.on('data', (data: any) => {
+    peer.on("data", (data: any) => {
       try {
         const message = JSON.parse(data.toString());
-        if (message.type === 'movement' && this.onPeerMovement) {
+        if (message.type === "movement" && this.onPeerMovement) {
           this.onPeerMovement(peerId, message.data);
         }
       } catch (error) {
-        console.error('Error parsing peer data:', error);
+        console.error("Error parsing peer data:", error);
       }
     });
 
-    peer.on('close', () => {
+    peer.on("close", () => {
       console.log(`Peer connection closed: ${peerId}`);
       this.peers.delete(peerId);
     });
@@ -132,8 +140,8 @@ export class WebRTCService {
 
   sendMovement(data: MovementData) {
     const message = JSON.stringify({
-      type: 'movement',
-      data
+      type: "movement",
+      data,
     });
 
     this.peers.forEach((peer) => {
@@ -145,13 +153,13 @@ export class WebRTCService {
 
   sendChatMessage(message: string) {
     this.ws?.send(JSON.stringify({
-      type: 'chat',
-      message
+      type: "chat",
+      message,
     }));
   }
 
   disconnect() {
-    this.peers.forEach(peer => peer.destroy());
+    this.peers.forEach((peer) => peer.destroy());
     this.peers.clear();
     this.ws?.close();
   }

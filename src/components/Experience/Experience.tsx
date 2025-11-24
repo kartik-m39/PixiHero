@@ -6,8 +6,8 @@ import { Level } from "../Levels/Level";
 import { Hero } from "../Hero/Hero";
 import { TILE_SIZE } from "../../constants/game-world";
 import { Camera } from "../Camera/Camera";
-import { WebRTCService, type MovementData } from "../../services/WebRTCService";
-import { ChatBox, type ChatMessage } from "../ChatBox/ChatBox";
+import { WebSocketService, type MovementData } from "../../services/WebSocketService";
+import { ChatBox, type ChatMessage } from "../ChatBox/ChatBoxInline";
 import { PeerHero } from "../PeerHero/PeerHero";
 
 // extend tells @pixi/react what Pixi.js components are available
@@ -28,12 +28,11 @@ export const Experience = ({ roomId }: ExperienceProps) => {
     const [HeroTexture, setHeroTexture] = useState(undefined);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [peerMovements, setPeerMovements] = useState<Map<string, MovementData>>(new Map());
-    const webrtcService = useRef<WebRTCService | null>(null);
-    const lastMovementRef = useRef<{x: number, y: number} | null>(null);
+    const wsService = useRef<WebSocketService | null>(null);
 
 
     // using callback as we do not want recreation of the function during each re-render
-    const updateHeroposition = useCallback((x: number, y: number) => {
+    const updateHeroposition = useCallback((x: number, y: number, direction: string | null, isMoving: boolean) => {
 
       // using floor as we want to snap our hero within the grid based system
       const newPos = {
@@ -43,18 +42,14 @@ export const Experience = ({ roomId }: ExperienceProps) => {
       
       setHeroPosition(newPos);
       
-      // Send movement to peers via WebRTC
-      if (webrtcService.current && 
-          (!lastMovementRef.current || 
-           lastMovementRef.current.x !== x || 
-           lastMovementRef.current.y !== y)) {
-        webrtcService.current.sendMovement({
+      // Send movement to peers via WebSocket every frame
+      if (wsService.current) {
+        wsService.current.sendMovement({
           x,
           y,
-          direction: null,
-          isMoving: true
+          direction,
+          isMoving
         });
-        lastMovementRef.current = {x, y};
       }
     } ,[])
 
@@ -70,25 +65,46 @@ export const Experience = ({ roomId }: ExperienceProps) => {
         });
     }, []);
 
-    // Initialize WebRTC connection
+    // Initialize WebSocket connection
     useEffect(() => {
         const handlePeerMovement = (peerId: string, data: MovementData) => {
-            setPeerMovements(prev => new Map(prev).set(peerId, data));
+            console.log('Experience: Received peer movement', peerId, data);
+            setPeerMovements(prev => {
+                const newMap = new Map(prev);
+                newMap.set(peerId, data);
+                console.log('Experience: Updated peerMovements, size:', newMap.size);
+                return newMap;
+            });
         };
 
         const handleChatMessage = (from: string, message: string, timestamp: number) => {
             setChatMessages(prev => [...prev, { from, message, timestamp }]);
         };
 
-        webrtcService.current = new WebRTCService(
+        const handlePeerJoined = (peerId: string) => {
+            console.log('Peer joined:', peerId);
+        };
+
+        const handlePeerLeft = (peerId: string) => {
+            console.log('Peer left:', peerId);
+            setPeerMovements(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(peerId);
+                return newMap;
+            });
+        };
+
+        wsService.current = new WebSocketService(
             roomId,
             handlePeerMovement,
-            handleChatMessage
+            handleChatMessage,
+            handlePeerJoined,
+            handlePeerLeft
         );
-        webrtcService.current.connect();
+        wsService.current.connect();
 
         return () => {
-            webrtcService.current?.disconnect();
+            wsService.current?.disconnect();
         };
     }, [roomId]);
 
@@ -120,11 +136,11 @@ export const Experience = ({ roomId }: ExperienceProps) => {
 
 
   const handleSendMessage = useCallback((message: string) => {
-    if (webrtcService.current) {
-      webrtcService.current.sendChatMessage(message);
+    if (wsService.current) {
+      wsService.current.sendChatMessage(message);
       // Add own message to chat
       setChatMessages(prev => [...prev, {
-        from: webrtcService.current!.getClientId(),
+        from: wsService.current!.getClientId(),
         message,
         timestamp: Date.now()
       }]);
@@ -145,14 +161,17 @@ export const Experience = ({ roomId }: ExperienceProps) => {
                 <Hero texture={HeroTexture} onMove={updateHeroposition}/>
                 
                 {/* Render peer heroes */}
-                {Array.from(peerMovements.entries()).map(([peerId, movementData]) => (
-                  <PeerHero 
-                    key={peerId}
-                    peerId={peerId}
-                    texture={HeroTexture}
-                    movementData={movementData}
-                  />
-                ))}
+                {Array.from(peerMovements.entries()).map(([peerId, movementData]) => {
+                  console.log('Rendering peer:', peerId, 'at', movementData.x, movementData.y);
+                  return (
+                    <PeerHero 
+                      key={peerId}
+                      peerId={peerId}
+                      texture={HeroTexture}
+                      movementData={movementData}
+                    />
+                  );
+                })}
               </Camera>
 
    
@@ -160,11 +179,11 @@ export const Experience = ({ roomId }: ExperienceProps) => {
       </Application>
 
       {/* Chat UI */}
-      {webrtcService.current && (
+      {wsService.current && (
         <ChatBox 
           messages={chatMessages}
           onSendMessage={handleSendMessage}
-          currentUserId={webrtcService.current.getClientId()}
+          currentUserId={wsService.current.getClientId()}
         />
       )}
     </>

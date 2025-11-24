@@ -1,6 +1,6 @@
-import { useState } from "react"
-import { Experience } from "./components/Experience/Experience"
-import { RoomDialog } from "./components/RoomDialog/RoomDialog"
+import { useState } from "react";
+import { Experience } from "./components/Experience/Experience";
+import { RoomDialog } from "./components/RoomDialog/RoomDialog";
 
 function App() {
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -10,7 +10,7 @@ function App() {
       {!roomId && <RoomDialog onJoinRoom={setRoomId} />}
       {roomId && <Experience roomId={roomId} />}
     </>
-  )
+  );
 }
 
-export default App
+export default App;
